@@ -26,7 +26,7 @@ test("full workflow: verify identity, FIFO, exact money, overdraft, history, and
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Your branch, at a glance." }),
+    page.getByRole("heading", { name: "Branch control." }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Client check-in", exact: true })
@@ -181,7 +181,7 @@ test("responsive workspace, accessible dialog focus, and offline read recovery",
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Your branch, at a glance." }),
+    page.getByRole("heading", { name: "Branch control." }),
   ).toBeVisible();
   expect(
     await page.evaluate(

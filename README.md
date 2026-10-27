@@ -6,7 +6,7 @@ A Java bank teller simulation built around a **check-in → FIFO queue → telle
 
 ![Banker teller dashboard](docs/images/dashboard.png)
 
-The responsive dashboard includes a live queue, independent teller sessions, deposits/withdrawals, a searchable client directory, account history, and confirmed account/branch closure. It uses the real API and fictional seed accounts. Fonts ship locally; no CDN or API key is required.
+The **Midnight Fintech** design uses a horizontal command bar, dark navy ledger surfaces, electric-blue transaction controls, and a bold balance card. The responsive dashboard includes a live queue, independent teller sessions, deposits/withdrawals, a searchable client directory, account history, and confirmed account/branch closure. It uses the real API and fictional seed accounts. Fonts ship locally; no CDN or API key is required.
 
 ## Run locally
 

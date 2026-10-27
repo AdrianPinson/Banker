@@ -225,10 +225,10 @@ export function App() {
   };
   const title =
     view === "overview"
-      ? "Your branch, at a glance."
+      ? "Branch control."
       : view === "directory"
-        ? "People behind the numbers."
-        : "Every interaction, recorded.";
+        ? "Client accounts."
+        : "Transaction ledger.";
   const switchView = (next: typeof view) => {
     setView(next);
     setQuery("");
@@ -372,26 +372,6 @@ export function App() {
             Activity
           </button>
         </nav>
-        <div className="sidebar-bottom">
-          <div className="simulation-card">
-            <ShieldCheck size={22} />
-            <strong>A space to practice.</strong>
-            <p>
-              Fictional clients.
-              <br />
-              Real workflow experience.
-            </p>
-            <span>SIMULATION ONLY</span>
-          </div>
-          <button className="help-button" onClick={() => setDialog("help")}>
-            <CircleHelp size={17} />
-            How this workspace works
-            <ArrowUpRight size={15} />
-          </button>
-          <div className="sidebar-footer">
-            Banker <span>Branch 001</span>
-          </div>
-        </div>
       </aside>
       <div className="workspace">
         <header className="topbar">
@@ -429,11 +409,11 @@ export function App() {
         <main id="main">
           <section className="page-intro">
             <div>
-              <p className="eyebrow">THE TELLER DESK</p>
+              <p className="eyebrow">BANKER / OPERATIONS</p>
               <h1>{title}</h1>
               <p>
                 {view === "overview"
-                  ? "Manage the line. Make every interaction count."
+                  ? "Your queue, your clients, your next move."
                   : view === "directory"
                     ? "Find a client, check a balance, and explore their history."
                     : "A clear history of the work behind each balance."}
@@ -581,7 +561,7 @@ export function App() {
                             {data.queue.length}
                           </span>
                         </h2>
-                        <p>A little order goes a long way.</p>
+                        <p>First in. First served.</p>
                       </div>
                       <span className="live-label">
                         <span className="status-dot" />
@@ -600,7 +580,7 @@ export function App() {
                             <Check size={12} />
                           </span>
                         </span>
-                        <h3>A clear line. A fresh start.</h3>
+                        <h3>Queue clear.</h3>
                         <p>Check in a client to get the day moving.</p>
                         <button
                           className="text-button"
@@ -852,8 +832,8 @@ export function App() {
                           <i />
                           <b />
                         </div>
-                        <p className="eyebrow">ONE CLIENT AT A TIME</p>
-                        <h3>Make room for a good interaction.</h3>
+                        <p className="eyebrow">TELLER STATION</p>
+                        <h3>Ready for the next client.</h3>
                         <p>
                           Choose a teller name and serve the next client.
                           <br />
@@ -878,7 +858,7 @@ export function App() {
                           {data.accounts.length}
                         </span>
                       </h2>
-                      <p>Familiar faces. Everything in one place.</p>
+                      <p>Account balances and client records.</p>
                     </div>
                     <label className="search-field">
                       <Search size={16} />
