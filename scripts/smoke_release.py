@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify and run an extracted release from a path with spaces, then test restart durability."""
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -54,13 +55,32 @@ def stop(process, force=False):
         process.wait(timeout=10)
 
 
+@contextmanager
+def release_workspace():
+    temporary = tempfile.TemporaryDirectory(prefix='Banker release check ')
+    try:
+        yield temporary.name
+    finally:
+        # Windows can briefly retain Java/antivirus file handles after taskkill returns.
+        # Retry deletion for a bounded interval; never suppress an unresolved cleanup error.
+        deadline = time.monotonic() + 10
+        while True:
+            try:
+                temporary.cleanup()
+                break
+            except PermissionError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(.1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--archive', type=Path, default=ROOT / f'target/releases/banker-{project_version()}.zip')
     args = parser.parse_args()
     expected = (args.archive.parent / 'SHA256SUMS.txt').read_text(encoding='utf-8').split()[0]
     check(hashlib.sha256(args.archive.read_bytes()).hexdigest() == expected, 'Release ZIP checksum mismatch')
-    with tempfile.TemporaryDirectory(prefix='Banker release check ') as temporary:
+    with release_workspace() as temporary:
         temporary = Path(temporary)
         extract = temporary / 'Extracted app with spaces'
         with zipfile.ZipFile(args.archive) as archive:
