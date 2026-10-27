@@ -1,0 +1,12 @@
+server:
+  address: 127.0.0.1
+spring:
+  datasource:
+    url: ${BANKER_TEST_DB_URL:jdbc:h2:mem:banker;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000}
+    username: ${BANKER_TEST_DB_USER:sa}
+    password: ${BANKER_TEST_DB_PASSWORD:}
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  flyway:
+    locations: classpath:db/migration

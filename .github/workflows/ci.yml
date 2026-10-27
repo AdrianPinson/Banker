@@ -1,0 +1,51 @@
+name: Banker core
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: banker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  h2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - run: mvn -B clean verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: banker-backend
+          path: target/banker-*.jar
+          retention-days: 7
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: banker_test
+          POSTGRES_USER: banker
+          POSTGRES_PASSWORD: banker-ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U banker -d banker_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      BANKER_TEST_DB_URL: jdbc:postgresql://localhost:5432/banker_test
+      BANKER_TEST_DB_USER: banker
+      BANKER_TEST_DB_PASSWORD: banker-ci-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - run: mvn -B clean verify

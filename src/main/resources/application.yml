@@ -1,0 +1,19 @@
+server:
+  address: ${BANKER_BIND_ADDRESS:127.0.0.1}
+  port: ${PORT:8080}
+spring:
+  datasource:
+    url: ${BANKER_DB_URL:jdbc:h2:file:./data/banker;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    username: ${BANKER_DB_USER:sa}
+    password: ${BANKER_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5000
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  mvc:
+    problemdetails:
+      enabled: true
+  flyway:
+    locations: classpath:db/migration
