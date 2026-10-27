@@ -1,4 +1,4 @@
-name: Banker core
+name: Banker workspace
 on:
   push:
     branches: [main, 'feat/**']
@@ -18,10 +18,27 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - run: mvn -B clean verify
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: mvn -B -Pweb clean verify
+      - run: npm --prefix frontend test
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm --prefix frontend run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: banker-browser-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
-          name: banker-backend
+          name: banker-desktop-web
           path: target/banker-*.jar
           retention-days: 7
   postgres:
