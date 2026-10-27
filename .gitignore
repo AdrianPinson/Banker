@@ -4,3 +4,8 @@
 .idea/
 *.iml
 .vscode/
+
+/frontend/node_modules/
+/frontend/dist/
+/frontend/test-results/
+/frontend/playwright-report/

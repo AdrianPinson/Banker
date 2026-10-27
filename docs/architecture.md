@@ -18,7 +18,7 @@ Foreign keys preserve account/ticket history. Numeric constraints reject negativ
 
 ## Boundaries
 
-The ledger tracks successful deposits, withdrawals, and closure events; command receipts also retain successful queue/branch responses. This is an audit trail for a simulation, not a double-entry ledger or a tamper-proof financial audit system. The demo has one branch, fixed fictional accounts, unlimited retained history, and no authentication. A teller label does not enforce access ownership. Those limits are deliberate for this milestone; the next portion adds the React/TypeScript workflow UI.
+The ledger tracks successful deposits, withdrawals, and closure events; command receipts also retain successful queue/branch responses. This is an audit trail for a simulation, not a double-entry ledger or a tamper-proof financial audit system. The demo has one branch, fixed fictional accounts, unlimited retained history, and no authentication. A teller label does not enforce access ownership. Those limits are deliberate for this milestone; the React/TypeScript UI presents the workflow without changing those security limits.
 
 ## Verification
 
@@ -29,3 +29,15 @@ The ledger tracks successful deposits, withdrawals, and closure events; command 
 - Forced ledger and receipt write failures to prove balance/history rollback.
 - Close the application context, reconnect to persistent storage, then verify balances, waiting/serving queue, history, and original retry responses.
 - Same suite against H2 and PostgreSQL, rather than claiming PostgreSQL correctness from H2 alone.
+
+## Frontend and packaging
+
+The React app uses typed API models and local state for three workspace views. Vite proxies `/api` during development; the Maven `web` profile packages its output into Spring Boot's static resources, so the normal JAR serves both the UI and API. Backend-only builds remain available. Local variable fonts are bundled with their license files under `/licenses/`; font/icon/React attribution is retained with the distribution.
+
+An explicit command client saves each UUID, route, normalized body, and user-facing action summary in tab-scoped session storage **before** sending a mutation. Only one command may be pending per tab. A network error, timeout, or server failure retains it; a reload restores the same command. The retry button resends exactly that saved command. Definitive input/business rejections clear it; confirmed actions clear it and trigger fresh reads. Mutations are paused when reads fail, and recovery commands remain available. Server-side persisted idempotency is the final duplicate protection across process restarts; UI disabling alone would not be sufficient.
+
+The frontend never optimistically changes balances. It refreshes account/queue/history data after commands, every ten seconds while visible, and on window focus. Failed reads preserve the previous display but pause new actions. Reads span several endpoints, so concurrent changes can briefly be seen across different snapshots; this is not an atomic dashboard snapshot. Database constraints and transaction boundaries remain authoritative.
+
+Closure confirmations retain their original ticket/account or branch target if background refreshes change the selected session. Switching sessions clears the amount field. Native dialogs provide focus trapping, Escape dismissal, and focus restoration; responsive layouts keep tables horizontally scrollable within their panels.
+
+A browser test deliberately forwards a deposit to the actual backend, discards its response, reloads the page, retries the stored command, and checks both the unchanged final balance and a single ledger entry. This tests a committed-but-unacknowledged command rather than only mocking a pre-request failure. The same suite also verifies mobile overflow, connection recovery, and selected automated accessibility rules.
