@@ -10,6 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   h2:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +28,7 @@ jobs:
       - run: npm --prefix frontend test
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
+        timeout-minutes: 5
       - run: npm --prefix frontend run test:e2e
       - uses: actions/upload-artifact@v4
         if: always()
@@ -42,6 +44,7 @@ jobs:
           path: target/banker-*.jar
           retention-days: 7
   postgres:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -67,6 +70,7 @@ jobs:
           cache: maven
       - run: mvn -B clean verify
   package:
+    timeout-minutes: 10
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     needs: [h2, postgres]
     runs-on: ubuntu-latest
@@ -86,6 +90,7 @@ jobs:
           path: target/releases/*
           retention-days: 7
   release-smoke:
+    timeout-minutes: 10
     needs: package
     strategy:
       fail-fast: false
@@ -107,6 +112,7 @@ jobs:
           path: target/releases
       - run: python scripts/smoke_release.py
   draft-release:
+    timeout-minutes: 5
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [package, release-smoke]
     runs-on: ubuntu-latest
