@@ -55,6 +55,18 @@ def stop(process, force=False):
         process.wait(timeout=10)
 
 
+def wait_closed(port):
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(('127.0.0.1', port), timeout=.2):
+                pass
+        except OSError:
+            return
+        time.sleep(.1)
+    raise AssertionError('The test app is still listening after process termination')
+
+
 @contextmanager
 def release_workspace():
     temporary = tempfile.TemporaryDirectory(prefix='Banker release check ')
@@ -153,6 +165,7 @@ def main():
                 post(path + '/complete')
                 check(request(base, '/accounts/DEMO-1001')['balance'] == 1015, 'Unexpected balance before restart')
                 stop(process, force=True)
+                wait_closed(port)
                 start(log)
                 check(request(base, '/accounts/DEMO-1001')['balance'] == 1015, 'Balance was not durable')
                 check(post(path + '/deposits', {'amount':'25.00'}, deposit_key) == original, 'Receipt was not durable')
@@ -160,16 +173,19 @@ def main():
                 check(len(request(base, '/accounts/DEMO-1001/transactions')) == 2, 'Ledger count mismatch')
                 check(request(base, '/queue') == [], 'Completed queue was not durable')
                 check((app / 'data').exists() and not (outside / 'data').exists(), 'Launcher used the wrong data directory')
-                print('PASS: extracted launcher, paths with spaces, dashboard/assets/fonts, checksums, transaction retries, ledger, and restart persistence')
             except Exception:
                 if process:
                     stop(process)
+                    wait_closed(port)
                 log.flush()
                 print((temporary / 'server.log').read_text(encoding='utf-8', errors='replace'))
                 raise
             finally:
                 if process:
                     stop(process)
+                    wait_closed(port)
+
+    print('PASS: extracted launcher, paths with spaces, dashboard/assets/fonts, checksums, transaction retries, ledger, forced restart, and cleanup')
 
 
 if __name__ == '__main__':
