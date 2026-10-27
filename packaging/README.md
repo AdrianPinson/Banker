@@ -29,7 +29,7 @@ If a transaction result is unconfirmed, use **Retry saved action** in the same b
 
 ## Data and configuration
 
-The default is file-backed H2. The fictional seed accounts are created only when the database is first initialized; startup does not reset an existing database. To reset a disposable demo, stop the app and remove only that demo's `data` folder. That permanently deletes its account changes and transaction history.
+The default is file-backed H2 with `WRITE_DELAY=0` to avoid delayed commit log flushing. If you supply a custom H2 URL, retain that setting. The fictional seed accounts are created only when the database is first initialized; startup does not reset an existing database. To reset a disposable demo, stop the app and remove only that demo's `data` folder. That permanently deletes its account changes and transaction history.
 
 Optional PostgreSQL mode uses `BANKER_DB_URL`, `BANKER_DB_USER`, and `BANKER_DB_PASSWORD`; examples are in the source repository README. The server binds to localhost by default. This is a fictional simulation without authentication or real banking integrations. Teller names are workflow labels, not user identities.
 

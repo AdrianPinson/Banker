@@ -23,7 +23,7 @@ mvn -Pweb clean verify
 java -jar target/banker-1.0.0.jar
 ```
 
-Open **http://127.0.0.1:8080/** for the dashboard; the API is at `/api`. The Maven `web` profile runs `npm ci`, type-checks/builds the frontend, and bundles the static assets into the same JAR. H2 writes to `./data/banker` relative to your working directory; use the same directory when restarting. Flyway applies versioned migrations automatically. There is no separate database installation for this default mode.
+Open **http://127.0.0.1:8080/** for the dashboard; the API is at `/api`. The Maven `web` profile runs `npm ci`, type-checks/builds the frontend, and bundles the static assets into the same JAR. H2 writes to `./data/banker` relative to your working directory; use the same directory when restarting. The default file-backed H2 URL uses `WRITE_DELAY=0`; the release test verifies acknowledged changes after forced process termination. Preserve that setting if using a custom H2 URL. Flyway applies versioned migrations automatically. There is no separate database installation for this default mode.
 
 To explore: check in **Alex River / DEMO-1001**, select **Serve next**, and try a deposit. Complete the session to free the teller. Use the directory to view current balances and account history. The help button explains the flow. Account closure requires $0.00; branch closure requires an empty queue and no active teller sessions.
 

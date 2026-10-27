@@ -41,3 +41,9 @@ The frontend never optimistically changes balances. It refreshes account/queue/h
 Closure confirmations retain their original ticket/account or branch target if background refreshes change the selected session. Switching sessions clears the amount field. Native dialogs provide focus trapping, Escape dismissal, and focus restoration; responsive layouts keep tables horizontally scrollable within their panels.
 
 A browser test deliberately forwards a deposit to the actual backend, discards its response, reloads the page, retries the stored command, and checks both the unchanged final balance and a single ledger entry. This tests a committed-but-unacknowledged command rather than only mocking a pre-request failure. The same suite also verifies mobile overflow, connection recovery, and selected automated accessibility rules.
+
+## File-backed demo commit flushing
+
+The default H2 URL includes `WRITE_DELAY=0`, so it does not use H2's default delayed log flush after commit. The release smoke check caught loss of recently acknowledged changes after forced termination with the delayed setting. It now exercises the actual shipped H2 defaults, forcibly stops its own app process, and checks balance, ledger, queue, and retry receipt state after restart on all three platforms. This favors persistence over write throughput for the small local demonstration. Custom H2 URLs should preserve `WRITE_DELAY=0`; PostgreSQL configuration is independent. These process-termination checks are not a power-loss/storage-hardware durability certification.
+
+Reference: [H2 SET WRITE_DELAY](https://h2database.com/html/commands.html#set_write_delay).

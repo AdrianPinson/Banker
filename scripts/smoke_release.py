@@ -36,14 +36,14 @@ def request(base, path, body=None, key=None):
         return json.load(response)
 
 
-def stop(process):
+def stop(process, force=False):
     if process.poll() is not None:
         return
     if os.name == 'nt':
         subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], check=False,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
-        os.killpg(process.pid, signal.SIGTERM)
+        os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
     try:
         process.wait(timeout=20)
     except subprocess.TimeoutExpired:
@@ -79,8 +79,10 @@ def main():
             listener.bind(('127.0.0.1', 0))
             port = listener.getsockname()[1]
         base = f'http://127.0.0.1:{port}'
-        env = dict(os.environ, BANKER_DB_URL='jdbc:h2:file:./data/release-smoke;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE',
-                   BANKER_DB_USER='sa', BANKER_DB_PASSWORD='', BANKER_BIND_ADDRESS='127.0.0.1', BANKER_NONINTERACTIVE='1')
+        env = dict(os.environ, BANKER_DB_USER='sa', BANKER_DB_PASSWORD='',
+                   BANKER_BIND_ADDRESS='127.0.0.1', BANKER_NONINTERACTIVE='1')
+        # Exercise the shipped file-backed H2 defaults, never an inherited external database.
+        env.pop('BANKER_DB_URL', None)
         outside = temporary / 'Different working directory'
         outside.mkdir()
         launcher = app / ('start-banker.cmd' if os.name == 'nt' else 'start-banker.sh')
@@ -130,7 +132,7 @@ def main():
                 post(path + '/withdrawals', {'amount':'10.00'})
                 post(path + '/complete')
                 check(request(base, '/accounts/DEMO-1001')['balance'] == 1015, 'Unexpected balance before restart')
-                stop(process)
+                stop(process, force=True)
                 start(log)
                 check(request(base, '/accounts/DEMO-1001')['balance'] == 1015, 'Balance was not durable')
                 check(post(path + '/deposits', {'amount':'25.00'}, deposit_key) == original, 'Receipt was not durable')

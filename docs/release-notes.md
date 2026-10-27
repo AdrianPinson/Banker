@@ -5,6 +5,7 @@ Banker evolves a CSV/linked-list coursework project into a local full-stack tell
 - React/TypeScript Midnight Fintech workspace with horizontal navigation, live queue, teller sessions, account directory, transaction history, responsive layouts, and local fonts.
 - Java/Spring Boot API with exact decimal deposits/withdrawals, no overdrafts, zero-balance closure, and retained history.
 - Atomic balance, ledger, and command-receipt persistence; UUID-keyed retry recovery survives server restart, and tab-scoped UI recovery survives reload.
+- Immediate log flushing in default file-backed H2, with forced-process restart checks for balances, ledger, and retry receipts.
 - Flyway-managed fictional seeds, file-backed H2 by default, optional PostgreSQL 17 configuration and CI coverage.
 - 31 Java tests, 21 frontend cases, four actual-JAR Chromium workflows, and selected automated desktop/mobile/dialog accessibility checks.
 - Portable ZIP with the complete UI/API JAR, Windows and macOS/Linux launchers, checksums, build provenance, and interview demo documentation.
