@@ -2,22 +2,28 @@
 
 A Java bank teller simulation built around a **check-in → FIFO queue → teller session** workflow. The backend persists accounts, queue tickets, exact decimal balances, transaction history, and retry receipts. It evolves the original linked-list coursework into a Spring Boot application; the original source remains in [`legacy/`](legacy/README.md).
 
-**Current milestone:** a React/TypeScript teller workspace backed by Spring Boot, with H2/PostgreSQL persistence, durable retry recovery, and real browser workflow tests.
+**Version 1.0.0:** a React/TypeScript teller workspace backed by Spring Boot, with H2/PostgreSQL persistence, durable retry recovery, and real browser workflow tests.
 
 ![Banker teller dashboard](docs/images/dashboard.png)
 
 The **Midnight Fintech** design uses a horizontal command bar, dark navy ledger surfaces, electric-blue transaction controls, and a bold balance card. The responsive dashboard includes a live queue, independent teller sessions, deposits/withdrawals, a searchable client directory, account history, and confirmed account/branch closure. It uses the real API and fictional seed accounts. Fonts ship locally; no CDN or API key is required.
 
-## Run locally
+## Quick demo and portfolio guide
+
+See the [three-minute interview demo and resume bullets](docs/demo-guide.md), [release build/verification guide](docs/release.md), and [1.0.0 release notes](docs/release-notes.md).
+
+The portable release ZIP contains the complete UI/API JAR and launch scripts. Extract it, run `start-banker.cmd` on Windows or `sh start-banker.sh` on macOS/Linux, wait for startup, then open http://127.0.0.1:8080. **Java 17+ is required**; Java is not bundled. The launchers keep demo data beside the app, even when launched from another directory. CI prepares a draft release after a validated main-branch merge; it does not publish automatically.
+
+## Build and run locally
 
 Requires **Java 17+, Maven 3.9+, and Node.js 24 LTS** to build the complete application. Python 3 is optional for the API demo script. Once built, the JAR requires only Java; Node is not needed to run it.
 
 ```sh
 mvn -Pweb clean verify
-java -jar target/banker-0.1.0.jar
+java -jar target/banker-1.0.0.jar
 ```
 
-Open **http://127.0.0.1:8080/** for the dashboard; the API is at `/api`. The Maven `web` profile runs `npm ci`, type-checks/builds the frontend, and bundles the static assets into the same JAR. H2 writes to `./data/banker` relative to your working directory; use the same directory when restarting. Flyway applies versioned migrations automatically. There is no separate database installation for this default mode.
+Open **http://127.0.0.1:8080/** for the dashboard; the API is at `/api`. The Maven `web` profile runs `npm ci`, type-checks/builds the frontend, and bundles the static assets into the same JAR. H2 writes to `./data/banker` relative to your working directory; use the same directory when restarting. The default file-backed H2 URL uses `WRITE_DELAY=0`; the release test verifies acknowledged changes after forced process termination. Preserve that setting if using a custom H2 URL. Flyway applies versioned migrations automatically. There is no separate database installation for this default mode.
 
 To explore: check in **Alex River / DEMO-1001**, select **Serve next**, and try a deposit. Complete the session to free the teller. Use the directory to view current balances and account history. The help button explains the flow. Account closure requires $0.00; branch closure requires an empty queue and no active teller sessions.
 
@@ -54,7 +60,7 @@ Then run the backend with environment variables (Bash example):
 export BANKER_DB_URL=jdbc:postgresql://localhost:5432/banker
 export BANKER_DB_USER=banker
 export BANKER_DB_PASSWORD=banker-local-demo
-java -jar target/banker-0.1.0.jar
+java -jar target/banker-1.0.0.jar
 ```
 
 PowerShell equivalents:
@@ -63,7 +69,7 @@ PowerShell equivalents:
 $env:BANKER_DB_URL = 'jdbc:postgresql://localhost:5432/banker'
 $env:BANKER_DB_USER = 'banker'
 $env:BANKER_DB_PASSWORD = 'banker-local-demo'
-java -jar target/banker-0.1.0.jar
+java -jar target/banker-1.0.0.jar
 ```
 
 Compose's default password is for local demonstration. If changed in `.env`, set the same value for the application. The PostgreSQL named volume survives `docker compose down`; `docker compose down -v` deletes that disposable database.
@@ -119,7 +125,7 @@ export BANKER_TEST_DB_PASSWORD=your-local-test-password
 mvn clean verify
 ```
 
-Tests reset demo rows; never point them at data you want to keep. CI runs separate H2 and PostgreSQL 17 jobs. The H2 job also builds the frontend, runs its tests, exercises the packaged app in Chromium, and uploads the complete JAR plus browser results. Tests cover concurrent withdrawals/retries/check-ins/claims, FIFO, identity validation, rollback on injected ledger/receipt failures, HTTP errors, exact money arithmetic, and a complete application-context restart against persistent storage.
+Tests reset demo rows; never point them at data you want to keep. CI runs separate H2 and PostgreSQL 17 jobs. The H2 job also builds the frontend, runs its tests, exercises the packaged app in Chromium, and uploads the complete JAR plus browser results. Release checks verify the extracted portable ZIP on Linux, Windows, and macOS, including paths with spaces and persisted transaction retries across a server restart. Tests cover concurrent withdrawals/retries/check-ins/claims, FIFO, identity validation, rollback on injected ledger/receipt failures, HTTP errors, exact money arithmetic, and a complete application-context restart against persistent storage.
 
 ## Design and scope
 

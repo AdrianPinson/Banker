@@ -10,6 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   h2:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +28,7 @@ jobs:
       - run: npm --prefix frontend test
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
+        timeout-minutes: 5
       - run: npm --prefix frontend run test:e2e
       - uses: actions/upload-artifact@v4
         if: always()
@@ -42,6 +44,7 @@ jobs:
           path: target/banker-*.jar
           retention-days: 7
   postgres:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -66,3 +69,73 @@ jobs:
           java-version: '17'
           cache: maven
       - run: mvn -B clean verify
+  package:
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    needs: [h2, postgres]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: banker-desktop-web
+          path: target
+      - run: python scripts/package_release.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: banker-release
+          path: target/releases/*
+          retention-days: 7
+  release-smoke:
+    timeout-minutes: 10
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: banker-release
+          path: target/releases
+      - run: python scripts/smoke_release.py
+  draft-release:
+    timeout-minutes: 5
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [package, release-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: banker-release
+          path: target/releases
+      - name: Prepare versioned draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version=$(python -c "import sys; sys.path.insert(0, 'scripts'); from package_release import project_version; print(project_version())")
+          tag="v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; leaving it unchanged."
+          else
+            gh release create "$tag" target/releases/* --draft --target "$GITHUB_SHA" --title "Banker $version — Midnight Fintech" --notes-file docs/release-notes.md
+          fi
