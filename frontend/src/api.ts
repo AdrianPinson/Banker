@@ -55,7 +55,7 @@ export interface CommandState {
 export const PENDING_KEY = "banker.pending.v1";
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const commandPath =
-  /^\/(queue\/(check-in|claim-next)|tickets\/\d+\/(deposits|withdrawals|complete|close-account)|branch\/(open|close))$/;
+  /^\/(queue\/(check-in|claim-next)|tickets\/\d+\/(deposits|withdrawals|transfers|complete|close-account)|branch\/(open|close))$/;
 
 export class Commands {
   private state: CommandState = {

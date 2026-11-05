@@ -22,6 +22,8 @@ export interface Entry {
   amount: number;
   balanceAfter: number;
   createdAt: string;
+  transferId: number | null;
+  counterpartyAccountId: string | null;
 }
 export interface Snapshot {
   accounts: Account[];

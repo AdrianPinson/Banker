@@ -51,3 +51,13 @@ Teller claims must use the authenticated username; ticket mutations require that
 Branch state changes and account closure also require MANAGER. Account closure still
 requires an owned serving ticket with a zero balance. Receipts are scoped to the employee,
 and successful commands record `commands.actor`. Cross-user key reuse returns 409.
+
+### Account transfer
+
+`POST /api/tickets/{id}/transfers` accepts `destinationAccountId` and decimal `amount`
+with the usual CSRF token and `Idempotency-Key`. The source is the owned serving ticket's
+account. Returns `{id, debit, credit}`; each ledger entry uses the initiating ticket ID.
+Histories add nullable `transferId` and `counterpartyAccountId`, retaining DEPOSIT/WITHDRAWAL
+kinds for backward compatibility. Retrying the original key returns the same transfer,
+even after completing the source ticket. Changing the destination or amount with that
+key returns 409. Self-transfers, closed/missing recipients, overdrafts and overflow are rejected.

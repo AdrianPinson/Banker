@@ -17,7 +17,7 @@ public class BankRepository {
             r.getString("status"), r.getString("teller"), time(r, "checked_in_at"), time(r, "served_at"), time(r, "completed_at"));
     private static final RowMapper<LedgerEntry> LEDGER = (r, n) -> new LedgerEntry(r.getLong("id"),
             r.getString("account_id"), r.getLong("ticket_id"), r.getString("kind"), r.getBigDecimal("amount"),
-            r.getBigDecimal("balance_after"), time(r, "created_at"));
+            r.getBigDecimal("balance_after"), time(r, "created_at"), null, null);
 
     public BankRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
     private static OffsetDateTime time(ResultSet r, String column) throws SQLException {
@@ -61,12 +61,26 @@ public class BankRepository {
     public void updateBalance(String id, java.math.BigDecimal balance) { jdbc.update("UPDATE accounts SET balance = ? WHERE id = ?", balance, id); }
     public void closeAccount(String id) { jdbc.update("UPDATE accounts SET status = 'CLOSED' WHERE id = ?", id); }
     public LedgerEntry ledger(Ticket ticket, String kind, java.math.BigDecimal amount, java.math.BigDecimal balance) {
+        return ledgerFor(ticket.accountId(), ticket.id(), kind, amount, balance);
+    }
+    public LedgerEntry ledgerFor(String accountId, long ticketId, String kind, java.math.BigDecimal amount, java.math.BigDecimal balance) {
         long id = insert("INSERT INTO ledger (account_id, ticket_id, kind, amount, balance_after, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                ticket.accountId(), ticket.id(), kind, amount, balance, OffsetDateTime.now());
+                accountId, ticketId, kind, amount, balance, OffsetDateTime.now());
         return jdbc.queryForObject("SELECT * FROM ledger WHERE id = ?", LEDGER, id);
     }
     public List<LedgerEntry> history(String account) {
-        return jdbc.query("SELECT * FROM ledger WHERE account_id = ? ORDER BY id", LEDGER, account);
+        return jdbc.query("SELECT l.*, t.id AS transfer_id, other.account_id AS counterparty FROM ledger l " +
+                "LEFT JOIN transfers t ON t.debit_ledger_id=l.id OR t.credit_ledger_id=l.id " +
+                "LEFT JOIN ledger other ON other.id=CASE WHEN t.debit_ledger_id=l.id THEN t.credit_ledger_id ELSE t.debit_ledger_id END " +
+                "WHERE l.account_id = ? ORDER BY l.id", (r, n) -> {
+                    LedgerEntry e = LEDGER.mapRow(r, n);
+                    return new LedgerEntry(e.id(), e.accountId(), e.ticketId(), e.kind(), e.amount(), e.balanceAfter(), e.createdAt(),
+                            r.getObject("transfer_id", Long.class), r.getString("counterparty"));
+                }, account);
+    }
+    public Transfer linkTransfer(LedgerEntry debit, LedgerEntry credit) {
+        long id = insert("INSERT INTO transfers (debit_ledger_id, credit_ledger_id) VALUES (?, ?)", debit.id(), credit.id());
+        return new Transfer(id, debit, credit);
     }
     public Optional<Receipt> receipt(String key) {
         return jdbc.query("SELECT fingerprint, response FROM commands WHERE request_key = ?",

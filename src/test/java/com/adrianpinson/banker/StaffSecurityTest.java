@@ -19,7 +19,8 @@ class StaffSecurityTest {
     @Autowired MockMvc http;
     @Autowired JdbcTemplate jdbc;
     @BeforeEach void reset() {
-        jdbc.update("DELETE FROM commands"); jdbc.update("DELETE FROM ledger"); jdbc.update("DELETE FROM tickets");
+        jdbc.update("DELETE FROM commands"); jdbc.update("DELETE FROM transfers");
+        jdbc.update("DELETE FROM ledger"); jdbc.update("DELETE FROM tickets");
         jdbc.update("UPDATE branch SET open = TRUE");
         jdbc.update("UPDATE accounts SET status='OPEN', balance=1000");
     }
