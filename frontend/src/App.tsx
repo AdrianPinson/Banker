@@ -25,6 +25,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import type { StaffSession } from "./auth";
 import { Commands, snapshot } from "./api";
 import {
   currency,
@@ -98,7 +99,8 @@ function Avatar({
 }
 const empty: Snapshot = { accounts: [], queue: [], entries: [], open: false };
 
-export function App() {
+export function App({ staff, onSignOut }: { staff: StaffSession; onSignOut: () => void }) {
+  const manager = !staff.enabled || staff.manager;
   const [commands] = useState(() => new Commands(storage));
   const command = useSyncExternalStore(
     commands.subscribe,
@@ -113,7 +115,7 @@ export function App() {
     "overview",
   );
   const [query, setQuery] = useState("");
-  const [teller, setTeller] = useState("teller-1");
+  const [teller, setTeller] = useState(staff.username || "teller-1");
   const [activeId, setActiveId] = useState<number | null>(null);
   const [operation, setOperation] = useState<"deposits" | "withdrawals">(
     "deposits",
@@ -178,10 +180,8 @@ export function App() {
   }, [refresh]);
   const waiting = data.queue.filter((t) => t.status === "WAITING");
   const serving = data.queue.filter((t) => t.status === "SERVING");
-  const active =
-    serving.find((t) => t.id === activeId) ??
-    serving.find((t) => t.teller === teller.trim().toLowerCase()) ??
-    serving[0];
+  const owned = staff.enabled ? serving.filter((t) => t.teller === staff.username) : serving;
+  const active = owned.find((t) => t.id === activeId) ?? owned.find((t) => t.teller === teller.trim().toLowerCase()) ?? owned[0];
   const account = data.accounts.find((a) => a.id === active?.accountId);
   const profile = data.accounts.find((a) => a.id === profileId);
   const closureAccount = data.accounts.find(
@@ -396,7 +396,8 @@ export function App() {
                     ? "Branch open"
                     : "Branch closed"}
             </span>
-            <span className="branch-code">BRANCH 001</span>
+            <span className="branch-code">{staff.username || "LOCAL DEMO"} · {manager ? "Manager" : "Teller"}</span>
+            {staff.enabled && <button className="text-button" disabled={command.busy || Boolean(command.pending && (!command.pending.owner || command.pending.owner === staff.username))} onClick={onSignOut}>Sign out</button>}
             <button
               className="operator-avatar"
               aria-label="Workspace help"
@@ -600,7 +601,7 @@ export function App() {
                             <li key={ticket.id}>
                               <button
                                 className={`queue-person ${active?.id === ticket.id ? "selected" : ""}`}
-                                disabled={ticket.status === "WAITING"}
+                                disabled={ticket.status === "WAITING" || (staff.enabled && ticket.teller !== staff.username)}
                                 onClick={() => {
                                   setActiveId(ticket.id);
                                   setAmount("");
@@ -644,7 +645,7 @@ export function App() {
                           value={teller}
                           maxLength={40}
                           onChange={(e) => setTeller(e.target.value)}
-                          disabled={locked}
+                          disabled={locked || staff.enabled}
                         />
                         <button
                           className="button primary"
@@ -806,7 +807,7 @@ export function App() {
                           </button>
                           <button
                             className="text-button muted"
-                            disabled={workLocked || account.balance !== 0}
+                            disabled={!manager || workLocked || account.balance !== 0}
                             onClick={() => {
                               setClosureTarget({
                                 ticketId: active.id,
@@ -974,7 +975,7 @@ export function App() {
               </span>
               <button
                 className="text-button"
-                disabled={locked || (data.open && data.queue.length > 0)}
+                disabled={!manager || locked || (data.open && data.queue.length > 0)}
                 onClick={() => {
                   setBranchTarget(!data.open);
                   setDialog("branch");
@@ -1092,7 +1093,7 @@ export function App() {
             </button>
             <button
               className="button danger"
-              disabled={workLocked || closureAccount.balance !== 0}
+              disabled={!manager || workLocked || closureAccount.balance !== 0}
               onClick={() =>
                 void run(
                   `/tickets/${closureTarget.ticketId}/close-account`,
@@ -1125,7 +1126,7 @@ export function App() {
             </button>
             <button
               className="button primary"
-              disabled={locked || (!branchTarget && data.queue.length > 0)}
+              disabled={!manager || locked || (!branchTarget && data.queue.length > 0)}
               onClick={() =>
                 void run(
                   `/branch/${branchTarget ? "open" : "close"}`,
@@ -1157,7 +1158,7 @@ export function App() {
             <li>
               <strong>Serve the next in line.</strong>
               <p>
-                Enter a teller name. One client can be assigned to each teller
+                Your signed-in staff account claims the next client. One client can be assigned to each teller
                 at a time.
               </p>
             </li>
@@ -1172,9 +1173,7 @@ export function App() {
           <div className="help-note">
             <ShieldCheck size={21} />
             <p>
-              This is a local simulation with fictional accounts. Teller names
-              are labels, and name matching is a practice step. This workspace
-              has no sign-in and does not handle real money.
+              This is a local simulation with fictional accounts. Staff sign-in controls teller ownership and manager permissions. Customer name matching remains a practice step; no real money is handled.
             </p>
           </div>
         </Modal>

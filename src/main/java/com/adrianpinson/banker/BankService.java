@@ -18,14 +18,16 @@ public class BankService {
     private final TransactionTemplate transactions;
     private final ObjectMapper json;
     private final Validator validator;
+    private final StaffAccess staff;
 
-    public BankService(BankRepository repo, PlatformTransactionManager manager, ObjectMapper json, Validator validator) {
+    public BankService(BankRepository repo, PlatformTransactionManager manager, ObjectMapper json, Validator validator, StaffAccess staff) {
         this.repo = repo;
         this.transactions = new TransactionTemplate(manager);
         this.transactions.setTimeout(10);
         this.transactions.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
         this.json = json;
         this.validator = validator;
+        this.staff = staff;
     }
     public List<Account> accounts() { return repo.accounts(); }
     public Account account(String id) { return repo.account(id); }
@@ -52,6 +54,7 @@ public class BankService {
     public Ticket claim(UUID key, Claim request) {
         validate(request);
         String teller = request.teller().trim().toLowerCase(Locale.ROOT);
+        staff.claimAs(teller);
         return command(key, "claim-next", teller, Ticket.class, () -> {
             requireOpen();
             if (repo.activeTeller(teller)) throw new BankException(409, "TELLER_BUSY", "Complete the teller's active ticket first.");
@@ -81,6 +84,7 @@ public class BankService {
         });
     }
     public Account closeAccount(UUID key, long ticketId) {
+        staff.manager();
         return command(key, "close-account", ticketId, Account.class, () -> {
             requireOpen();
             Ticket ticket = serving(ticketId);
@@ -94,6 +98,7 @@ public class BankService {
         });
     }
     public Branch setOpen(UUID key, boolean open) {
+        staff.manager();
         return command(key, "branch-open", open, Branch.class, () -> {
             if (!open && !repo.queue().isEmpty()) throw new BankException(409, "ACTIVE_TICKETS", "Complete all waiting and serving tickets before closing the branch.");
             repo.setOpen(open);
@@ -102,6 +107,7 @@ public class BankService {
     }
     private Ticket serving(long id) {
         Ticket ticket = repo.ticket(id);
+        staff.owns(ticket);
         if (!ticket.status().equals("SERVING")) throw new BankException(409, "TICKET_NOT_SERVING", "The ticket must be serving for this operation.");
         return ticket;
     }
@@ -118,7 +124,8 @@ public class BankService {
     // This deliberately favors correctness and clear FIFO behavior for a single demo branch.
     private <T> T command(UUID key, String operation, Object payload, Class<T> type, Supplier<T> action) {
         if (key == null) throw new BankException(400, "MISSING_KEY", "An Idempotency-Key UUID is required.");
-        String fingerprint = fingerprint(operation, payload);
+        String actor = staff.actor();
+        String fingerprint = fingerprint(operation, actor.equals("local-demo") ? payload : List.of(actor, payload));
         return transactions.execute(status -> {
             repo.lockWorkflow();
             var saved = repo.receipt(key.toString());
@@ -128,7 +135,8 @@ public class BankService {
                 catch (JsonProcessingException e) { throw new IllegalStateException("Invalid stored command response", e); }
             }
             T response = action.get();
-            try { repo.receipt(key.toString(), fingerprint, json.writeValueAsString(response)); }
+            try { repo.receipt(key.toString(), fingerprint, json.writeValueAsString(response));
+                repo.auditActor(key.toString(), staff.actor()); }
             catch (JsonProcessingException e) { throw new IllegalStateException("Cannot persist command response", e); }
             return response;
         });

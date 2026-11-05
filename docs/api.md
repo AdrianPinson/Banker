@@ -37,3 +37,17 @@ curl -X POST http://127.0.0.1:8080/api/queue/check-in \
 Business errors use `application/problem+json`, with `status`, `detail`, and stable `code` fields. Common codes: 404 `ACCOUNT_NOT_FOUND`/`TICKET_NOT_FOUND`; 409 `ALREADY_CHECKED_IN`, `TELLER_BUSY`, `QUEUE_EMPTY`, `TICKET_NOT_SERVING`, `INSUFFICIENT_FUNDS`, `BALANCE_LIMIT`, `BALANCE_NOT_ZERO`, `ACCOUNT_CLOSED`, `ACTIVE_TICKETS`, `BRANCH_CLOSED`, and `KEY_REUSED`. Identity mismatch is 400 `IDENTITY_MISMATCH`. Framework-level syntax/header errors need not have a `code`; use HTTP status and detail. Database errors return 503 `DATABASE_UNAVAILABLE`; retry with the original key because a lost connection can leave commit outcome uncertain.
 
 The forthcoming UI should keep the idempotency key until it has a definite result, disable duplicate submissions while pending, show structured errors, and refresh account/queue/history after mutations. Teller names are session labels, not authenticated users.
+
+## Staff sessions
+
+The default configuration protects all `/api/**` routes except `GET /api/auth` and
+`POST /api/login`. Fetch `/api/auth` with a cookie jar, send its `csrfToken` as
+`X-CSRF-TOKEN` with URL-encoded `username` and `password` to `/api/login`, then fetch
+`/api/auth` again for the new session token. Send this header on every subsequent POST,
+including `/api/logout`. Login/logout return 204 on success; invalid login returns 401.
+CSRF failures return 403. Sign-in status is not cached.
+
+Teller claims must use the authenticated username; ticket mutations require that same owner.
+Branch state changes and account closure also require MANAGER. Account closure still
+requires an owned serving ticket with a zero balance. Receipts are scoped to the employee,
+and successful commands record `commands.actor`. Cross-user key reuse returns 409.

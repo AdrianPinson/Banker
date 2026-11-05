@@ -10,3 +10,7 @@ spring:
       fail-on-unknown-properties: true
   flyway:
     locations: classpath:db/migration
+
+banker:
+  security:
+    enabled: false

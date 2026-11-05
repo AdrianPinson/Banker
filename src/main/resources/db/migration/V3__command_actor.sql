@@ -1,0 +1,1 @@
+ALTER TABLE commands ADD COLUMN actor VARCHAR(40) NOT NULL DEFAULT 'legacy';
