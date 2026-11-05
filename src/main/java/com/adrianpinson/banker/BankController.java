@@ -22,6 +22,7 @@ public class BankController {
     @PostMapping("/tickets/{id}/complete") public Ticket complete(@RequestHeader("Idempotency-Key") UUID key, @PathVariable long id) { return bank.complete(key, id); }
     @PostMapping("/tickets/{id}/deposits") public LedgerEntry deposit(@RequestHeader("Idempotency-Key") UUID key, @PathVariable long id, @Valid @RequestBody Money request) { return bank.transact(key, id, request, true); }
     @PostMapping("/tickets/{id}/withdrawals") public LedgerEntry withdraw(@RequestHeader("Idempotency-Key") UUID key, @PathVariable long id, @Valid @RequestBody Money request) { return bank.transact(key, id, request, false); }
+    @PostMapping("/tickets/{id}/transfers") public Transfer transfer(@RequestHeader("Idempotency-Key") UUID key, @PathVariable long id, @Valid @RequestBody TransferRequest request) { return bank.transfer(key, id, request); }
     @PostMapping("/tickets/{id}/close-account") public Account closeAccount(@RequestHeader("Idempotency-Key") UUID key, @PathVariable long id) { return bank.closeAccount(key, id); }
     @PostMapping("/branch/open") public Branch open(@RequestHeader("Idempotency-Key") UUID key) { return bank.setOpen(key, true); }
     @PostMapping("/branch/close") public Branch close(@RequestHeader("Idempotency-Key") UUID key) { return bank.setOpen(key, false); }

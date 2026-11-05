@@ -29,6 +29,7 @@ class BankWorkflowTest {
     @BeforeEach void resetDatabase() {
         reset(repo);
         jdbc.update("DELETE FROM commands");
+        jdbc.update("DELETE FROM transfers");
         jdbc.update("DELETE FROM ledger");
         jdbc.update("DELETE FROM tickets");
         jdbc.update("UPDATE accounts SET status = 'OPEN', balance = CASE id WHEN 'DEMO-1001' THEN 1000.00 WHEN 'DEMO-1002' THEN 250.00 ELSE 0.00 END");

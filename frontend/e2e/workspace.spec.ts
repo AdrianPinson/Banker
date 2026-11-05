@@ -248,3 +248,22 @@ test("teller sign-in restricts manager controls and sign-out clears access", asy
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   expect((await page.request.get("/api/accounts")).status()).toBe(401);
 });
+
+
+test("transfer updates both accounts and labels their linked history", async ({ page }) => {
+  await checkIn(page, "Alex", "River"); await serve(page);
+  const before = await (await page.request.get("/api/accounts/DEMO-1001")).json();
+  const recipientBefore = await (await page.request.get("/api/accounts/DEMO-1002")).json();
+  await page.getByRole("button", { name: "Transfer to another account" }).click();
+  await page.getByLabel("Destination account").selectOption("DEMO-1002");
+  await page.getByLabel("Transfer amount").fill("12.34");
+  await page.getByRole("button", { name: "Confirm transfer" }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  const after = await (await page.request.get("/api/accounts/DEMO-1001")).json();
+  const recipientAfter = await (await page.request.get("/api/accounts/DEMO-1002")).json();
+  expect(Math.round((before.balance - after.balance) * 100)).toBe(1234);
+  expect(Math.round((recipientAfter.balance - recipientBefore.balance) * 100)).toBe(1234);
+  await page.getByRole("button", { name: "Activity", exact: true }).click();
+  await expect(page.getByRole("cell", { name: "Transfer out", exact: false })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Transfer in", exact: false })).toBeVisible();
+});

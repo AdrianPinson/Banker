@@ -163,3 +163,13 @@ See [API contract](docs/api.md) for the authenticated request sequence.
 ## Project history
 
 The coursework version used CSV storage and intrusive linked-list nodes. It had compilation errors, a list insertion bug, and shared account/queue pointers. The current backend replaces those structures with independent persisted accounts and queue tickets while retaining the original teller workflow. The archived source and CSVs are preserved for reference and excluded from the Maven build.
+
+## Account transfers
+
+An owned serving ticket can transfer money to a different open demo account. Use
+**Transfer to another account**, choose the recipient and amount, then confirm.
+The source debit, recipient credit, linked ledger entries, transfer record, actor, and
+retry receipt commit together under the existing database workflow lock. Invalid recipients,
+overdrawn sources, recipient overflow, and injected database failures leave neither side changed.
+Both account histories display the same transfer reference and the other account ID.
+The initiating ticket belongs to the source customer; the recipient need not be checked in.

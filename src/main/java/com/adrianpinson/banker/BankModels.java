@@ -11,7 +11,10 @@ public final class BankModels {
     public record Ticket(long id, String accountId, String status, String teller,
                          OffsetDateTime checkedInAt, OffsetDateTime servedAt, OffsetDateTime completedAt) {}
     public record LedgerEntry(long id, String accountId, long ticketId, String kind,
-                              BigDecimal amount, BigDecimal balanceAfter, OffsetDateTime createdAt) {}
+                              BigDecimal amount, BigDecimal balanceAfter, OffsetDateTime createdAt, Long transferId, String counterpartyAccountId) {}
+    public record Transfer(long id, LedgerEntry debit, LedgerEntry credit) {}
+    public record TransferRequest(@NotBlank @Size(max=16) String destinationAccountId,
+            @NotNull @DecimalMin("0.01") @DecimalMax("9999999999999.99") @Digits(integer=13, fraction=2) BigDecimal amount) {}
     public record Branch(boolean open) {}
     public record CheckIn(@NotBlank @Size(max=16) String accountId,
                           @NotBlank @Size(max=60) String firstName,

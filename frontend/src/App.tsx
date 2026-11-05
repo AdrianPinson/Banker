@@ -121,9 +121,12 @@ export function App({ staff, onSignOut }: { staff: StaffSession; onSignOut: () =
     "deposits",
   );
   const [amount, setAmount] = useState("");
+  const [destination, setDestination] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferError, setTransferError] = useState("");
   const [formError, setFormError] = useState("");
   const [dialog, setDialog] = useState<
-    "check-in" | "close-account" | "branch" | "help" | null
+    "check-in" | "transfer" | "close-account" | "branch" | "help" | null
   >(null);
   const [closureTarget, setClosureTarget] = useState<{
     ticketId: number;
@@ -280,14 +283,16 @@ export function App({ staff, onSignOut }: { staff: StaffSession; onSignOut: () =
                     )}
                   </span>
                   <strong>
-                    {e.kind === "CLOSE_ACCOUNT"
+                    {e.transferId
+                      ? `Transfer ${e.kind === "DEPOSIT" ? "in" : "out"}`
+                      : e.kind === "CLOSE_ACCOUNT"
                       ? "Account closed"
                       : e.kind === "DEPOSIT"
                         ? "Deposit"
                         : "Withdrawal"}
                   </strong>
                   <small className="row-secondary">
-                    #{e.id} · Ticket {e.ticketId}
+                    #{e.id} · Ticket {e.ticketId}{e.transferId ? ` · Transfer #${e.transferId} · ${e.counterpartyAccountId}` : ""}
                   </small>
                 </td>
                 <td>
@@ -790,6 +795,10 @@ export function App({ staff, onSignOut }: { staff: StaffSession; onSignOut: () =
                             <ArrowRight size={17} />
                           </button>
                         </form>
+                        <button className="button secondary full-width" disabled={workLocked || data.accounts.filter((a) => a.status === "OPEN" && a.id !== account.id).length === 0} onClick={() => {
+                          setDestination(data.accounts.find((a) => a.status === "OPEN" && a.id !== account.id)?.id || "");
+                          setTransferAmount(""); setTransferError(""); setDialog("transfer");
+                        }}>Transfer to another account</button>
                         <div className="session-actions">
                           <button
                             className="text-button"
@@ -987,6 +996,28 @@ export function App({ staff, onSignOut }: { staff: StaffSession; onSignOut: () =
           </footer>
         </main>
       </div>
+      {dialog === "transfer" && active && account && (
+        <Modal title="Transfer between demo accounts" onClose={() => setDialog(null)}>
+          <p>From {fullName(account)} · {account.id} · Available {currency(account.balance)}</p>
+          <p>Both account balances and their linked history entries are saved together.</p>
+          <form className="money-form" onSubmit={(event) => {
+            event.preventDefault();
+            const value = moneyInput(transferAmount);
+            if (!value) { setTransferError("Enter a positive amount with no more than two decimal places."); return; }
+            void run(`/tickets/${active.id}/transfers`, { destinationAccountId: destination, amount: value }, `Transfer of $${value} to ${destination}`);
+          }}>
+            <label htmlFor="transfer-destination">Destination account</label>
+            <select id="transfer-destination" value={destination} disabled={workLocked} onChange={(e) => setDestination(e.target.value)}>
+              {data.accounts.filter((a) => a.status === "OPEN" && a.id !== account.id).map((a) => <option key={a.id} value={a.id}>{fullName(a)} · {a.id}</option>)}
+            </select>
+            <label htmlFor="transfer-amount">Transfer amount</label>
+            <input id="transfer-amount" inputMode="decimal" maxLength={16} value={transferAmount} disabled={workLocked} onChange={(e) => setTransferAmount(e.target.value)} />
+            {transferError && <p role="alert">{transferError}</p>}
+            {command.notice?.kind === "error" && <p role="alert">{command.notice.message}</p>}
+            <button className="button primary" disabled={workLocked || !destination || !transferAmount}>Confirm transfer</button>
+          </form>
+        </Modal>
+      )}
       {dialog === "check-in" && (
         <Modal title="Client check-in" onClose={() => setDialog(null)}>
           <p className="dialog-description">

@@ -83,6 +83,25 @@ public class BankService {
             return repo.ledger(ticket, kind, amount, balance);
         });
     }
+    public Transfer transfer(UUID key, long ticketId, TransferRequest request) {
+        validate(request);
+        BigDecimal amount = MoneyRules.positive(request.amount());
+        String destination = request.destinationAccountId().trim().toUpperCase(Locale.ROOT);
+        return command(key, "transfer", List.of(ticketId, destination, amount.toPlainString()), Transfer.class, () -> {
+            requireOpen();
+            Ticket ticket = serving(ticketId);
+            Account source = repo.account(ticket.accountId());
+            Account target = repo.account(destination);
+            requireAccountOpen(source); requireAccountOpen(target);
+            if (source.id().equals(target.id())) throw new BankException(400, "SAME_ACCOUNT", "Choose a different destination account.");
+            BigDecimal sourceAfter = MoneyRules.apply(source.balance(), amount, false);
+            BigDecimal targetAfter = MoneyRules.apply(target.balance(), amount, true);
+            repo.updateBalance(source.id(), sourceAfter); repo.updateBalance(target.id(), targetAfter);
+            LedgerEntry debit = repo.ledger(ticket, "WITHDRAWAL", amount, sourceAfter);
+            LedgerEntry credit = repo.ledgerFor(target.id(), ticket.id(), "DEPOSIT", amount, targetAfter);
+            return repo.linkTransfer(debit, credit);
+        });
+    }
     public Account closeAccount(UUID key, long ticketId) {
         staff.manager();
         return command(key, "close-account", ticketId, Account.class, () -> {
