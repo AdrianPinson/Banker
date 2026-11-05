@@ -109,6 +109,7 @@ export function App({ staff, onSignOut }: { staff: StaffSession; onSignOut: () =
   const [data, setData] = useState<Snapshot>(empty);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [live, setLive] = useState(false);
   const [connectionError, setConnectionError] = useState("");
   const [updated, setUpdated] = useState<Date | null>(null);
   const [view, setView] = useState<"overview" | "directory" | "activity">(
@@ -180,6 +181,14 @@ export function App({ staff, onSignOut }: { staff: StaffSession; onSignOut: () =
       clearInterval(interval);
       window.removeEventListener("focus", focus);
     };
+  }, [refresh]);
+  useEffect(() => {
+    const stream = new EventSource("/api/events");
+    const changed = () => { setLive(true); void refresh(); };
+    stream.addEventListener("revision", changed);
+    stream.onopen = () => setLive(true);
+    stream.onerror = () => setLive(false);
+    return () => { stream.removeEventListener("revision", changed); stream.close(); };
   }, [refresh]);
   const waiting = data.queue.filter((t) => t.status === "WAITING");
   const serving = data.queue.filter((t) => t.status === "SERVING");
@@ -401,7 +410,7 @@ export function App({ staff, onSignOut }: { staff: StaffSession; onSignOut: () =
                     ? "Branch open"
                     : "Branch closed"}
             </span>
-            <span className="branch-code">{staff.username || "LOCAL DEMO"} · {manager ? "Manager" : "Teller"}</span>
+            <span className="branch-code" aria-live="polite">{live ? "Live updates · " : "Periodic refresh · "}{staff.username || "LOCAL DEMO"} · {manager ? "Manager" : "Teller"}</span>
             {staff.enabled && <button className="text-button" disabled={command.busy || Boolean(command.pending && (!command.pending.owner || command.pending.owner === staff.username))} onClick={onSignOut}>Sign out</button>}
             <button
               className="operator-avatar"

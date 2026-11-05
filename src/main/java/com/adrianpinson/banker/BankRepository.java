@@ -24,6 +24,8 @@ public class BankRepository {
         OffsetDateTime value = r.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.withOffsetSameInstant(java.time.ZoneOffset.UTC);
     }
+    public long revision() { return jdbc.queryForObject("SELECT revision FROM branch WHERE id=1", Long.class); }
+    public void advanceRevision() { jdbc.update("UPDATE branch SET revision=revision+1 WHERE id=1"); }
     public void lockWorkflow() { jdbc.queryForObject("SELECT id FROM branch WHERE id = 1 FOR UPDATE", Integer.class); }
     public Branch branch() { return new Branch(Boolean.TRUE.equals(jdbc.queryForObject("SELECT open FROM branch WHERE id = 1", Boolean.class))); }
     public void setOpen(boolean open) { jdbc.update("UPDATE branch SET open = ? WHERE id = 1", open); }

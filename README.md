@@ -173,3 +173,14 @@ retry receipt commit together under the existing database workflow lock. Invalid
 overdrawn sources, recipient overflow, and injected database failures leave neither side changed.
 Both account histories display the same transfer reference and the other account ID.
 The initiating ticket belongs to the source customer; the recipient need not be checked in.
+
+## Live queue updates
+
+Signed-in dashboards subscribe to `/api/events` using Server-Sent Events. A committed
+command advances a database revision atomically; every app process checks that revision
+once per second and sends revision-only notifications to its connected clients. Dashboards
+refresh their real API state on change. Retries and rolled-back commands do not advance it.
+Streams reconnect at least every 25 seconds to recheck authentication; the server caps live
+connections at 64. A visible live/periodic indicator shows connection status. The existing
+10-second polling and focus/manual refresh remain available during reconnects or outages.
+No customer data is sent in the notification payload.

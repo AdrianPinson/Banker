@@ -35,6 +35,7 @@ public class StaffSecurity {
             @Value("${banker.security.enabled:true}") boolean enabled) throws Exception {
         if (!enabled) return http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(a -> a.anyRequest().permitAll()).build();
         return http.authorizeHttpRequests(a -> a
+                    .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
                     .requestMatchers("/api/auth", "/api/login").permitAll()
                     .requestMatchers("/api/**").authenticated()
                     .anyRequest().permitAll())
