@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { Commands, PENDING_KEY } from "./api";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Commands, configureSession, PENDING_KEY } from "./api";
 import { moneyInput } from "./types";
 class MemoryStore {
   values = new Map<string, string>();
@@ -176,5 +176,40 @@ describe("decimal input", () => {
     ["9999999999999.99", "9999999999999.99"],
   ])("normalizes %s as %s", (value, expected) => {
     expect(moneyInput(value)).toBe(expected);
+  });
+});
+
+
+describe("staff receipt recovery", () => {
+  afterEach(() => configureSession({ enabled: false, username: "", csrfToken: "" }));
+  it("keeps the original key on expired sign-in and retries with a renewed CSRF token", async () => {
+    configureSession({ enabled: true, username: "teller-1", csrfToken: "old" });
+    const store = new MemoryStore();
+    let calls = 0;
+    const keys: string[] = [];
+    const transport = send(async (_url, options) => {
+      const headers = options!.headers as Record<string, string>;
+      keys.push(headers["Idempotency-Key"]);
+      if (++calls === 1) return new Response("{}", { status: 401 });
+      expect(headers["X-CSRF-TOKEN"]).toBe("renewed");
+      return new Response("{}");
+    });
+    const commands = new Commands(store, transport);
+    expect(await commands.start("/tickets/1/deposits", { amount: "5.00" }, "Deposit")).toBe(false);
+    expect(commands.getSnapshot().pending?.owner).toBe("teller-1");
+    configureSession({ enabled: true, username: "teller-1", csrfToken: "renewed" });
+    expect(await commands.retry()).toBe(true);
+    expect(keys[0]).toBe(keys[1]);
+  });
+  it("never sends another employee's saved command", async () => {
+    configureSession({ enabled: true, username: "teller-1", csrfToken: "one" });
+    const store = new MemoryStore();
+    const transport = send(async () => { throw new Error("lost response"); });
+    const commands = new Commands(store, transport);
+    await commands.start("/tickets/1/deposits", { amount: "5.00" }, "Deposit");
+    configureSession({ enabled: true, username: "teller-2", csrfToken: "two" });
+    expect(await commands.retry()).toBe(false);
+    expect(transport).toHaveBeenCalledTimes(1);
+    expect(commands.getSnapshot().pending).not.toBeNull();
   });
 });

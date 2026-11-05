@@ -1,11 +1,17 @@
 import type { Account, Entry, Snapshot, Ticket } from "./types";
 
+let session = { username: "", csrfToken: "", enabled: false };
+export function configureSession(value: typeof session) { session = value; }
+function signInRequired() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("banker:signin"));
+}
 export async function read<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`/api${path}`, {
     signal: signal
       ? AbortSignal.any([signal, AbortSignal.timeout(8000)])
       : AbortSignal.timeout(8000),
   });
+  if (response.status === 401) signInRequired();
   if (!response.ok)
     throw new Error(
       "The branch could not be refreshed. Check the connection and try again.",
@@ -38,6 +44,7 @@ export interface Pending {
   path: string;
   body?: unknown;
   label: string;
+  owner?: string;
 }
 export interface CommandState {
   storageBlocked: boolean;
@@ -103,7 +110,7 @@ export class Commands {
     if (this.state.pending || this.state.busy || this.storageFailed)
       return false;
     if (!commandPath.test(path)) throw new Error("Invalid command path");
-    const pending: Pending = { key: crypto.randomUUID(), path, body, label };
+    const pending: Pending = { key: crypto.randomUUID(), path, body, label, owner: session.enabled ? session.username : undefined };
     try {
       this.storage.setItem(PENDING_KEY, JSON.stringify(pending));
     } catch {
@@ -125,6 +132,10 @@ export class Commands {
   private async execute(): Promise<boolean> {
     const pending = this.state.pending;
     if (!pending) return false;
+    if (pending.owner && pending.owner !== session.username) {
+      this.update({ notice: { kind: "error", message: `Sign in as ${pending.owner} to retry this saved action.` } });
+      return false;
+    }
     this.update({ busy: true, notice: null });
     try {
       const response = await this.send(`/api${pending.path}`, {
@@ -132,11 +143,17 @@ export class Commands {
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": pending.key,
+          ...(session.csrfToken ? { "X-CSRF-TOKEN": session.csrfToken } : {}),
         },
         body:
           pending.body === undefined ? undefined : JSON.stringify(pending.body),
         signal: AbortSignal.timeout(20000),
       });
+      if (response.status === 401 || response.status === 403) {
+        this.update({ notice: { kind: "error", message: "Your saved action is preserved. Sign in as its original staff member and retry." } });
+        signInRequired();
+        return false;
+      }
       if (!response.ok) {
         if (
           response.status >= 500 ||

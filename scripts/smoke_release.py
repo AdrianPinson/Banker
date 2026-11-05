@@ -17,8 +17,9 @@ import urllib.request
 import uuid
 import zipfile
 from package_release import ROOT, project_version
+from staff_http import StaffHttp
 
-HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+HTTP = StaffHttp()
 
 
 def check(condition, message):
@@ -27,10 +28,10 @@ def check(condition, message):
 
 
 def request(base, path, body=None, key=None):
-    headers = {}
+    headers = HTTP.headers(base)
     data = None
     if key:
-        headers = {'Content-Type': 'application/json', 'Idempotency-Key': key}
+        headers.update({'Content-Type': 'application/json', 'Idempotency-Key': key})
         data = json.dumps(body).encode() if body is not None else b''
     req = urllib.request.Request(base + '/api' + path, data=data, headers=headers)
     with HTTP.open(req, timeout=5) as response:
@@ -112,7 +113,9 @@ def main():
             port = listener.getsockname()[1]
         base = f'http://127.0.0.1:{port}'
         env = dict(os.environ, BANKER_DB_USER='sa', BANKER_DB_PASSWORD='',
-                   BANKER_BIND_ADDRESS='127.0.0.1', BANKER_NONINTERACTIVE='1')
+                   BANKER_BIND_ADDRESS='127.0.0.1', BANKER_NONINTERACTIVE='1',
+                   BANKER_SECURITY_ENABLED='true', BANKER_MANAGER_PASSWORD='manager-demo-only',
+                   BANKER_DEMO_USER='manager', BANKER_DEMO_PASSWORD='manager-demo-only')
         # Exercise the shipped file-backed H2 defaults, never an inherited external database.
         env.pop('BANKER_DB_URL', None)
         outside = temporary / 'Different working directory'
@@ -156,7 +159,7 @@ def main():
                 def post(path, body=None, key=None):
                     return request(base, path, body, key or str(uuid.uuid4()))
                 ticket = post('/queue/check-in', {'accountId':'DEMO-1001', 'firstName':'Alex', 'lastName':'River'})
-                check(post('/queue/claim-next', {'teller':'release-teller'})['id'] == ticket['id'], 'FIFO claim mismatch')
+                check(post('/queue/claim-next', {'teller':'manager'})['id'] == ticket['id'], 'FIFO claim mismatch')
                 path = f"/tickets/{ticket['id']}"
                 deposit_key = str(uuid.uuid4())
                 original = post(path + '/deposits', {'amount':'25.00'}, deposit_key)

@@ -5,6 +5,8 @@ import json
 import urllib.request
 import uuid
 from decimal import Decimal
+from staff_http import StaffHttp
+import os
 
 
 def main():
@@ -12,20 +14,21 @@ def main():
     parser.add_argument('--url', default='http://127.0.0.1:8080')
     args = parser.parse_args()
 
+    http = StaffHttp()
     def request(path, payload=None, key=None, write=False):
         data = json.dumps(payload).encode() if payload is not None else (b'' if write else None)
-        headers = {'Content-Type': 'application/json'}
+        headers = {'Content-Type': 'application/json', **http.headers(args.url)}
         if write:
             headers['Idempotency-Key'] = key or str(uuid.uuid4())
         req = urllib.request.Request(args.url.rstrip('/') + '/api' + path, data=data, headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as response:
+        with http.open(req, timeout=15) as response:
             return json.load(response, parse_float=Decimal)
 
     if not request('/branch')['open'] or request('/queue'):
         raise RuntimeError('Use an open branch with an empty queue for this demo.')
     before = request('/accounts/DEMO-1001')['balance']
     ticket = request('/queue/check-in', {'accountId': 'DEMO-1001', 'firstName': 'Alex', 'lastName': 'River'}, write=True)
-    claimed = request('/queue/claim-next', {'teller': 'demo-teller'}, write=True)
+    claimed = request('/queue/claim-next', {'teller': os.environ.get('BANKER_DEMO_USER', 'manager')}, write=True)
     if claimed['id'] != ticket['id']:
         raise RuntimeError('Another client was ahead in the queue. Use a fresh demo database for this script.')
     prefix = '/tickets/' + str(ticket['id'])

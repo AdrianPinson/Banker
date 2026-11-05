@@ -22,7 +22,7 @@ export default defineConfig({
   webServer: {
     command:
       'java -jar ../target/banker-1.0.0.jar --server.port=8091 "--spring.datasource.url=jdbc:h2:mem:browser;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE" --spring.datasource.username=sa --spring.datasource.password=',
-    url: "http://127.0.0.1:8091/api/branch",
+    url: "http://127.0.0.1:8091/api/auth",
     reuseExistingServer: false,
     timeout: 60000,
   },

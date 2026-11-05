@@ -131,7 +131,34 @@ Tests reset demo rows; never point them at data you want to keep. CI runs separa
 
 `BankController` handles HTTP input, `BankService` owns workflow and transaction boundaries, `BankRepository` owns SQL, and `MoneyRules` holds decimal invariants. Flyway is the only schema initializer. See [API contract](docs/api.md) and [architecture decisions](docs/architecture.md).
 
-This is a **local, fictional bank simulation**, with no authentication or real banking integration. Name matching demonstrates the original workflow; it is not identity security. The backend binds to localhost by default and has no CORS allowance. Public deployment and authentication are outside this portion. The interface labels all data as fictional and does not imply authenticated teller ownership.
+This is a **local, fictional bank simulation** with staff sign-in and server-enforced permissions. Customer name matching demonstrates check-in; it is not customer identity security. The backend binds to localhost by default and has no CORS allowance. Public hosting and real banking integration remain outside its scope.
+
+## Staff sign-in and permissions
+
+Sign in with `teller-1` or `teller-2` / `teller-demo-only`, or `manager` / `manager-demo-only`.
+These published passwords are for the local fictional demo. Set `BANKER_TELLER_PASSWORD` and
+`BANKER_MANAGER_PASSWORD` (at least 12 characters) before running with non-demo credentials.
+Passwords are BCrypt-hashed at startup; credentials are not stored in browser storage.
+Accounts are configured at startup rather than managed through a registration flow.
+
+Every staff account can check in customers, read the directory/history, and claim its own next
+FIFO ticket. Only its owner can deposit, withdraw, or complete that ticket. Managers can also
+open/close the branch and close their own zero-balance customer accounts. Each successful
+command stores the staff username in `commands.actor` in the same transaction as the result.
+Receipt fingerprints include the actor, preventing another staff account from replaying a receipt.
+
+Sessions use an HttpOnly, SameSite=Strict cookie, expire after 30 minutes of inactivity, and
+require a CSRF token for login/logout and every mutation. `/api/auth` returns session status
+and a token; protected APIs return 401 when signed out. Sign-out invalidates the server session.
+Saved uncertain commands retain their original key through expiry and require the original
+staff user to retry. Sign-out is blocked while that user's action is unresolved.
+
+`BANKER_SECURITY_ENABLED=false` is an explicit local legacy/test mode; the default is `true`.
+Existing service regression tests use legacy mode; dedicated HTTP security and browser tests
+run with authentication enabled. Finish unresolved commands before upgrading from a version
+without staff identity, because old anonymous receipts cannot be attributed to an employee.
+The Python demo signs in as manager, or uses `BANKER_DEMO_USER` / `BANKER_DEMO_PASSWORD`.
+See [API contract](docs/api.md) for the authenticated request sequence.
 
 ## Project history
 

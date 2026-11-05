@@ -20,6 +20,13 @@ async function serve(page: Page) {
   await page.getByRole("button", { name: "Serve next", exact: true }).click();
   await expect(page.getByTestId("active-balance")).toBeVisible();
 }
+test.beforeEach(async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Staff username").fill("manager");
+  await page.getByLabel("Password", { exact: true }).fill("manager-demo-only");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Branch control." })).toBeVisible();
+});
 test.describe.configure({ mode: "serial" });
 test("full workflow: verify identity, FIFO, exact money, overdraft, history, and session completion", async ({
   page,
@@ -101,7 +108,6 @@ test("full workflow: verify identity, FIFO, exact money, overdraft, history, and
 });
 test("lost response after real commit survives reload and retry without another deposit", async ({
   page,
-  request,
 }) => {
   await page.goto("/");
   await checkIn(page, "Alex", "River");
@@ -124,7 +130,11 @@ test("lost response after real commit survives reload and retry without another 
   await expect(
     page.getByRole("button", { name: "Complete session", exact: true }),
   ).toBeDisabled();
+  await page.context().clearCookies();
   await page.reload();
+  await page.getByLabel("Staff username").fill("manager");
+  await page.getByLabel("Password", { exact: true }).fill("manager-demo-only");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Saved pending action" }),
   ).toContainText("25.00");
@@ -136,7 +146,7 @@ test("lost response after real commit survives reload and retry without another 
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBe(keys[1]);
   const history = await (
-    await request.get("/api/accounts/DEMO-1001/transactions")
+    await page.request.get("/api/accounts/DEMO-1001/transactions")
   ).json();
   expect(
     history.filter(
@@ -219,4 +229,22 @@ test("responsive workspace, accessible dialog focus, and offline read recovery",
     path: "test-results/banker-mobile.png",
     fullPage: true,
   });
+});
+
+
+test("teller sign-in restricts manager controls and sign-out clears access", async ({ page }) => {
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Sign in to your branch." })).toBeVisible();
+  await page.getByLabel("Staff username").fill("teller-1");
+  await page.getByLabel("Password", { exact: true }).fill("wrong-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("incorrect");
+  await page.getByLabel("Password", { exact: true }).fill("teller-demo-only");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Branch control." })).toBeVisible();
+  await expect(page.getByLabel("Teller name")).toHaveValue("teller-1");
+  await expect(page.getByLabel("Teller name")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Close branch", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  expect((await page.request.get("/api/accounts")).status()).toBe(401);
 });

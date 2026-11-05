@@ -75,6 +75,9 @@ public class BankRepository {
     public void receipt(String key, String fingerprint, String response) {
         jdbc.update("INSERT INTO commands (request_key, fingerprint, response, created_at) VALUES (?, ?, ?, ?)", key, fingerprint, response, OffsetDateTime.now());
     }
+    public void auditActor(String key, String actor) {
+        jdbc.update("UPDATE commands SET actor = ? WHERE request_key = ?", actor, key);
+    }
     public record Receipt(String fingerprint, String response) {}
     private long insert(String sql, Object... args) {
         GeneratedKeyHolder holder = new GeneratedKeyHolder();
