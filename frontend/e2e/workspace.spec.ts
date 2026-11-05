@@ -267,3 +267,23 @@ test("transfer updates both accounts and labels their linked history", async ({ 
   await expect(page.getByRole("cell", { name: "Transfer out", exact: false })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Transfer in", exact: false })).toBeVisible();
 });
+
+
+test("a second signed-in dashboard receives queue changes without polling", async ({ page, browser }) => {
+  const otherContext = await browser.newContext();
+  const other = await otherContext.newPage();
+  try {
+    await other.goto("http://127.0.0.1:8091/");
+    await other.getByLabel("Staff username").fill("teller-2");
+    await other.getByLabel("Password", { exact: true }).fill("teller-demo-only");
+    await other.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(other.getByRole("heading", { name: "Branch control." })).toBeVisible();
+    await expect(other.getByText("Live updates", { exact: false })).toBeVisible();
+    // Disable the fallback interval after mounting: only a server event can refresh this page.
+    await other.evaluate(() => { for (let id = 1; id < 10000; id++) window.clearInterval(id); });
+    await page.getByRole("button", { name: "Complete session", exact: true }).click();
+    await checkIn(page, "Jordan", "Vale", "DEMO-1002");
+    await expect(other.getByRole("button", { name: /Jordan Vale, ticket.*waiting/ })).toBeVisible({ timeout: 5000 });
+    expect((await other.request.get("/api/queue")).status()).toBe(200);
+  } finally { await otherContext.close(); }
+});

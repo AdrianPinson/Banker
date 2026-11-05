@@ -155,7 +155,8 @@ public class BankService {
             }
             T response = action.get();
             try { repo.receipt(key.toString(), fingerprint, json.writeValueAsString(response));
-                repo.auditActor(key.toString(), staff.actor()); }
+                repo.auditActor(key.toString(), staff.actor());
+                repo.advanceRevision(); }
             catch (JsonProcessingException e) { throw new IllegalStateException("Cannot persist command response", e); }
             return response;
         });

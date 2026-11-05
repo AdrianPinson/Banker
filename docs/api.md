@@ -61,3 +61,10 @@ Histories add nullable `transferId` and `counterpartyAccountId`, retaining DEPOS
 kinds for backward compatibility. Retrying the original key returns the same transfer,
 even after completing the source ticket. Changing the destination or amount with that
 key returns 409. Self-transfers, closed/missing recipients, overdrafts and overflow are rejected.
+
+### Live events
+
+`GET /api/events` is an authenticated `text/event-stream` endpoint using the normal session
+cookie. `revision` events carry `{revision}` and an event ID. The first event always gives
+the current revision; reconnecting clients reload the current snapshot, so missing intermediate
+events do not lose state. Events are notifications rather than a transaction log.
